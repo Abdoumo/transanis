@@ -28,6 +28,9 @@ export const api = {
   // Authentification (Login / Logout)
   login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
 
+  // Health Check
+  getHealth: () => request('/health'),
+
   // Statistiques SQL
   getStats: () => request('/stats'),
 

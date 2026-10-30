@@ -1,13 +1,30 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { db, initSchema } from './db.js';
 import { seedDatabase } from './seed.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(cors());
 app.use(express.json());
+
+// Health Check Endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'EURL TRANSANIS Flotte & Missions API',
+    database: { type: 'SQLite', connected: true },
+    timestamp: new Date().toISOString()
+  });
+});
 
 // --------------------------------------------------------------------------
 // 1. STATISTIQUES & TABLEAU DE BORD (Requêtes SQL Agrégées)
@@ -648,16 +665,35 @@ app.post('/api/reset-factory', async (req, res) => {
   }
 });
 
+// --------------------------------------------------------------------------
+// 8. FICHIERS STATIQUES FRONTEND & GESTION SPA (En production)
+// --------------------------------------------------------------------------
+const distPath = path.resolve(__dirname, '../dist');
+if (fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'))) {
+  console.log(`📦 Distribution frontend détectée dans ${distPath}`);
+  app.use(express.static(distPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
+// Handler 404 pour les routes API inconnues
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Route API non trouvée: ${req.method} ${req.originalUrl}` });
+});
+
 // Démarrage du serveur et initialisation DB
 async function startServer() {
   await seedDatabase(false);
-  app.listen(PORT, '127.0.0.1', () => {
+  app.listen(PORT, HOST, () => {
     console.log(`====================================================`);
     console.log(`🚀 SERVEUR BACKEND EURL TRANSANIS ACTIF`);
-    console.log(`📡 URL REST API : http://127.0.0.1:${PORT}`);
+    console.log(`📡 URL REST API : http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}`);
     console.log(`💾 BASE DE DONNÉES : SQLite (database.sqlite)`);
     console.log(`====================================================`);
   });
 }
 
 startServer();
+
