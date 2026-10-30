@@ -685,15 +685,29 @@ app.use('/api', (req, res) => {
 
 // Démarrage du serveur et initialisation DB
 async function startServer() {
-  await seedDatabase(false);
-  app.listen(PORT, HOST, () => {
+  try {
+    console.log('🔄 Initialisation de la base SQLite et des données...');
+    await seedDatabase(false);
+    console.log('✓ Initialisation terminée.');
+  } catch (err) {
+    console.error('⚠️ Avertissement initialisation DB (le serveur démarre quand même):', err.message);
+  }
+
+  const server = app.listen(PORT, HOST, () => {
     console.log(`====================================================`);
     console.log(`🚀 SERVEUR BACKEND EURL TRANSANIS ACTIF`);
     console.log(`📡 URL REST API : http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}`);
     console.log(`💾 BASE DE DONNÉES : SQLite (database.sqlite)`);
     console.log(`====================================================`);
   });
+
+  server.on('error', (err) => {
+    console.error('❌ Erreur critique serveur Express (ex: port occupé):', err.message);
+  });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error('❌ Erreur fatale au démarrage:', err);
+});
+
 
